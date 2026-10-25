@@ -1,0 +1,31 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import 'fake-indexeddb/auto';
+import '../db.js';
+
+test('el inventario y la venta se guardan juntos y se pueden respaldar', async () => {
+  const db = globalThis.LocalDB;
+  await db.open();
+  await db.saveSettings({ name:'Tienda Prueba',address:'Calle 1',phone:'123',footer:'Gracias',currency:'COP' });
+  const first = await db.saveProduct({ id:'producto-1',barcode:'7701234567890',name:'Café',price:2500,cost:1200,stock:5,min_stock:1 });
+  assert.equal(first.stock,5);
+  await assert.rejects(db.saveProduct({ id:'producto-2',barcode:'7701234567890',name:'Duplicado',price:1000,stock:1 }),error=>error.name==='ConstraintError');
+  const adjusted = await db.adjustStock('producto-1',-2,'Merma');
+  assert.equal(adjusted.stock,3);
+  const sale = await db.commitSale({'producto-1':2},'efectivo','Cliente');
+  assert.equal(sale.total,5000);
+  assert.equal(sale.number,'V-000001');
+  assert.equal((await db.all('products'))[0].stock,1);
+  assert.equal((await db.all('sales')).length,1);
+  await assert.rejects(db.commitSale({'producto-1':2},'efectivo',''),/Existencias insuficientes/);
+  assert.equal((await db.all('sales')).length,1);
+  const backup=await db.exportBackup();
+  assert.equal(backup.products.length,1);
+  await assert.rejects(db.restoreBackup({format:'otro',version:1,products:[],sales:[],movements:[],settings:{}}),/respaldo válido/);
+  assert.equal((await db.all('products'))[0].stock,1);
+  await db.archiveProduct('producto-1');
+  assert.equal((await db.all('products'))[0].active,false);
+  await db.restoreBackup(backup);
+  assert.equal((await db.all('products'))[0].active,true);
+  assert.equal((await db.all('sales'))[0].number,'V-000001');
+});
