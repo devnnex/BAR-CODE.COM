@@ -28,4 +28,14 @@ test('el inventario y la venta se guardan juntos y se pueden respaldar', async (
   await db.restoreBackup(backup);
   assert.equal((await db.all('products'))[0].active,true);
   assert.equal((await db.all('sales'))[0].number,'V-000001');
+  const draft=await db.registerBarcode('7709876543210');
+  assert.equal(draft.created,true);
+  assert.equal(draft.product.needs_details,true);
+  assert.equal((await db.registerBarcode('7709876543210')).created,false);
+  await assert.rejects(db.commitSale({[draft.product.id]:1},'efectivo',''),/Completa la ficha/);
+  const draftBackup=await db.exportBackup();
+  await db.restoreBackup(draftBackup);
+  assert.equal((await db.all('products')).find(product=>product.id===draft.product.id)?.needs_details,true);
+  const completed=await db.saveProduct({...draft.product,name:'Aceite',price:12000,stock:3,needs_details:false});
+  assert.equal(completed.needs_details,false);
 });

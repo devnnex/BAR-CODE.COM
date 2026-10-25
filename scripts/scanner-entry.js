@@ -5,7 +5,7 @@ export async function start(video, onCode) {
   const reader = new BrowserMultiFormatReader();
   let lastCode = '';
   let lastAt = 0;
-  return reader.decodeFromConstraints({ audio: false, video: { facingMode: { ideal: 'environment' } } }, video, result => {
+  return reader.decodeFromConstraints({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } }, video, result => {
     if (!result) return;
     const code = result.getText().trim();
     if (!code || (code === lastCode && Date.now() - lastAt < 1800)) return;

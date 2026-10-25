@@ -34,12 +34,14 @@ test('index.html abierto como archivo dibuja la caja local', async () => {
   dom.window.document.querySelector('[data-action="scan"][data-mode="sale"]').click();
   await new Promise(resolve=>setTimeout(resolve,0));
   assert.ok(dom.window.document.getElementById('scanner-video'));
-  onScan({text:'https://marca.example/promocion-aceite',format:'QR_CODE'});
+  await onScan({text:'https://marca.example/promocion-aceite',format:'QR_CODE'});
   assert.match(dom.window.document.querySelector('[data-scan-message]').textContent,/contiene un enlace/);
   assert.ok(dom.window.document.getElementById('scanner-video'));
-  onScan({text:'7701234567890',format:'EAN_13'});
+  await onScan({text:'7701234567890',format:'EAN_13'});
   assert.equal(dom.window.document.querySelector('[data-form="product"] [name="barcode"]').value,'7701234567890');
   assert.equal(stopped,true);
+  const draft=(await dom.window.LocalDB.all('products')).find(product=>product.barcode==='7701234567890');
+  assert.equal(draft?.needs_details,true);
   const form=dom.window.document.querySelector('[data-form="product"]');
   form.elements.name.value='Aceite de prueba';
   form.elements.price.value='12000';
@@ -47,17 +49,29 @@ test('index.html abierto como archivo dibuja la caja local', async () => {
   form.dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));
   let products=[];
   const saveStarted=Date.now();
-  while (!products.some(product=>product.barcode==='7701234567890') && Date.now()-saveStarted<4000) {
+  while (!products.some(product=>product.barcode==='7701234567890' && !product.needs_details) && Date.now()-saveStarted<4000) {
     await new Promise(resolve=>setTimeout(resolve,25));
     products=await dom.window.LocalDB.all('products');
   }
   assert.equal(products.find(product=>product.barcode==='7701234567890')?.name,'Aceite de prueba');
+  while (!dom.window.document.getElementById('scanner-video') && Date.now()-saveStarted<4000) {
+    await new Promise(resolve=>setTimeout(resolve,25));
+  }
+  stopped=false;
+  await onScan({text:'7701234567890',format:'EAN_13'});
+  assert.match(dom.window.document.querySelector('[data-scan-cart]').textContent,/2 unidades/);
+  assert.ok(dom.window.document.getElementById('scanner-video'));
+  assert.equal(stopped,false);
+  dom.window.document.querySelector('.scanner-modal [data-action="close"]').click();
+  dom.window.document.querySelector('[data-action="view"][data-view="inventario"]').click();
   while (!dom.window.document.querySelector('[data-action="scan"][data-mode="find"]') && Date.now()-saveStarted<4000) {
     await new Promise(resolve=>setTimeout(resolve,25));
   }
   dom.window.document.querySelector('[data-action="scan"][data-mode="find"]').click();
-  onScan({text:'7709876543210',format:'EAN_13'});
+  await new Promise(resolve=>setTimeout(resolve,0));
+  await onScan({text:'7709876543210',format:'EAN_13'});
   assert.equal(dom.window.document.querySelector('[data-form="product"] [name="barcode"]').value,'7709876543210');
+  assert.equal((await dom.window.LocalDB.all('products')).find(product=>product.barcode==='7709876543210')?.needs_details,true);
   assert.equal(errors.length,0,errors.map(String).join('\n'));
   dom.window.close();
 });

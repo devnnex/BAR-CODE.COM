@@ -93,11 +93,26 @@
       cost: requireNumber(input.cost ?? 0, 'El costo'),
       stock: requireNumber(input.stock ?? 0, 'La existencia'),
       min_stock: requireNumber(input.min_stock ?? 0, 'El stock mínimo'),
+      needs_details: input.needs_details === true,
       active: true,
       updated_at: new Date().toISOString()
     };
-    if (!product.barcode || !product.name) throw new Error('El código de barras y el nombre son obligatorios.');
+    if (!product.barcode || (!product.name && !product.needs_details)) throw new Error('El código de barras y el nombre son obligatorios.');
     return product;
+  }
+  function registerBarcode(value) {
+    const barcode = String(value || '').trim();
+    if (!barcode || barcode.length > 80) return Promise.reject(new Error('Código de barras inválido.'));
+    return transact(['products'], 'readwrite', ({ store, done }) => {
+      const products = store('products');
+      const request = products.index('barcode').get(barcode);
+      request.onsuccess = () => {
+        if (request.result) return done({ product: request.result, created: false });
+        const product = validateProduct({ barcode, name: '', price: 0, cost: 0, stock: 0, min_stock: 0, needs_details: true });
+        products.add(product);
+        done({ product, created: true });
+      };
+    });
   }
   function saveProduct(input) {
     const product = validateProduct(input);
@@ -174,7 +189,7 @@
           let total = 0;
           const lines = items.map(([id, quantity]) => {
             const product = loaded.get(id);
-            if (!product?.active) throw new Error('Un producto ya no está disponible.');
+            if (!product?.active || product.needs_details) throw new Error('Completa la ficha del producto antes de venderlo.');
             if (Number(product.stock) < quantity) throw new Error(`Existencias insuficientes para ${product.name}.`);
             const lineTotal = Math.round(Number(product.price) * quantity * 100) / 100;
             total += lineTotal;
@@ -227,5 +242,5 @@
     });
   }
 
-  globalThis.LocalDB = { open, all, getSettings, saveSettings, saveProduct, adjustStock, archiveProduct, commitSale, exportBackup, restoreBackup, validateProduct };
+  globalThis.LocalDB = { open, all, getSettings, saveSettings, registerBarcode, saveProduct, adjustStock, archiveProduct, commitSale, exportBackup, restoreBackup, validateProduct };
 })();

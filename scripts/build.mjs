@@ -11,7 +11,7 @@ const hash = createHash('sha256');
 for (const name of files) hash.update(await readFile(join(root,name)));
 const version = hash.digest('hex').slice(0,12);
 const assets = ['./',...files.map(name=>`./${name}`)];
-const worker = `const CACHE='codigo-de-barras-${version}';\nconst ASSETS=${JSON.stringify(assets)};\nself.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});\nself.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('codigo-de-barras-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});\nself.addEventListener('fetch',event=>{if(event.request.method!=='GET'||new URL(event.request.url).origin!==self.location.origin)return;event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request)));});\n`;
+const worker = `const CACHE='codigo-de-barras-${version}';\nconst ASSETS=${JSON.stringify(assets)};\nself.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});\nself.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('codigo-de-barras-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});\nself.addEventListener('fetch',event=>{if(event.request.method!=='GET'||new URL(event.request.url).origin!==self.location.origin)return;event.respondWith(fetch(event.request).catch(()=>caches.match(event.request)));});\n`;
 await writeFile(join(root,'sw.js'),worker);
 const dist = join(root,'dist');
 await mkdir(dist,{recursive:true});

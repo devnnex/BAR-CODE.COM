@@ -14,7 +14,7 @@
     state.toast = String(message);
     render();
     clearTimeout(notify.timer);
-    notify.timer = setTimeout(()=>{state.toast='';render();},4400);
+    notify.timer = setTimeout(()=>{state.toast='';if(state.modal?.type!=='scanner')render();},4400);
   }
   function friendly(error) {
     if (error?.name==='ConstraintError') return 'Este código de barras ya está registrado.';
@@ -35,7 +35,7 @@
     return `<div class="page-heading"><div><span class="eyebrow">${esc(state.shop.name)}</span><h1>${title}</h1><p>${description}</p></div>${action}</div>`;
   }
   function caja() {
-    const matches=activeProducts().filter(p=>!state.query||`${p.name} ${p.barcode}`.toLowerCase().includes(state.query.toLowerCase())).slice(0,35);
+    const matches=activeProducts().filter(p=>!p.needs_details && (!state.query||`${p.name} ${p.barcode}`.toLowerCase().includes(state.query.toLowerCase()))).slice(0,35);
     const lines=cartLines();
     return `${heading('Caja rápida','Escanea un código o busca un producto.',`<button class="primary compact" data-action="scan" data-mode="sale">⌗ Escanear</button>`)}
       <div class="checkout-grid"><section class="panel"><div class="section-title"><h2>Buscar producto</h2><span>${activeProducts().length} en catálogo</span></div><div class="search-row"><input id="search" type="search" placeholder="Nombre o código de barras" value="${esc(state.query)}" autocomplete="off"><button class="secondary" data-action="manual" data-mode="sale">Código</button></div><div class="product-picker">${matches.length?matches.map(p=>`<button class="picker-item" data-action="add" data-id="${esc(p.id)}" ${Number(p.stock)<1?'disabled':''}><span class="item-symbol">▦</span><span class="grow"><strong>${esc(p.name)}</strong><small>${esc(p.barcode)} · ${esc(p.stock)} ${esc(p.unit)}</small></span><span class="item-price">${money(p.price)}</span><span class="plus">+</span></button>`).join(''):'<p class="empty">No hay productos. Agrégalos en Inventario.</p>'}</div></section>
@@ -43,8 +43,8 @@
   }
   function inventario() {
     const matches=activeProducts().filter(p=>!state.query||`${p.name} ${p.barcode} ${p.category}`.toLowerCase().includes(state.query.toLowerCase()));
-    const low=activeProducts().filter(p=>Number(p.stock)<=Number(p.min_stock)).length;
-    return `${heading('Inventario','Productos y existencias guardados en este dispositivo.',`<button class="primary compact" data-action="new-product">+ Nuevo producto</button>`)}<div class="stat-row"><div class="stat"><span>Productos</span><strong>${activeProducts().length}</strong></div><div class="stat"><span>Unidades</span><strong>${activeProducts().reduce((n,p)=>n+Number(p.stock),0)}</strong></div><div class="stat warning"><span>Stock bajo</span><strong>${low}</strong></div></div><section class="panel"><div class="section-title"><h2>Catálogo</h2><button class="text-button" data-action="csv">Exportar CSV</button></div><div class="search-row"><input id="search" type="search" placeholder="Nombre, categoría o código" value="${esc(state.query)}"><button class="secondary" data-action="scan" data-mode="find">⌗ Escanear</button></div><div class="inventory-list">${matches.length?matches.map(p=>`<div class="inventory-item"><span class="item-symbol">▦</span><span class="grow"><strong>${esc(p.name)}</strong><small>${esc(p.barcode)} · ${esc(p.category||p.unit)}</small></span><span class="stock ${Number(p.stock)<=Number(p.min_stock)?'low':''}">${esc(p.stock)} <small>${esc(p.unit)}</small></span><strong class="inventory-price">${money(p.price)}</strong><button class="icon-btn" data-action="edit" data-id="${esc(p.id)}" aria-label="Editar">✎</button><button class="icon-btn" data-action="stock" data-id="${esc(p.id)}" aria-label="Ajustar stock">±</button></div>`).join(''):'<p class="empty">No se encontraron productos.</p>'}</div></section><section class="panel movement-panel"><div class="section-title"><h2>Últimos movimientos</h2><span>Existencias</span></div>${state.movements.length?state.movements.slice(0,50).map(m=>`<div class="movement-row"><span class="movement-sign ${m.delta<0?'negative':''}">${m.delta>0?'+':''}${esc(m.delta)}</span><span class="grow"><strong>${esc(m.product_name)}</strong><small>${esc(m.reason)} ${m.reference?'· '+esc(m.reference):''}</small></span><span class="movement-after"><strong>${esc(m.after_stock)}</strong><small>${esc(new Date(m.created_at).toLocaleDateString('es-CO'))}</small></span></div>`).join(''):'<p class="empty">Aún no hay movimientos.</p>'}</section>`;
+    const low=activeProducts().filter(p=>!p.needs_details && Number(p.stock)<=Number(p.min_stock)).length;
+    return `${heading('Inventario','Productos y existencias guardados en este dispositivo.',`<button class="primary compact" data-action="new-product">+ Nuevo producto</button>`)}<div class="stat-row"><div class="stat"><span>Productos</span><strong>${activeProducts().length}</strong></div><div class="stat"><span>Unidades</span><strong>${activeProducts().reduce((n,p)=>n+Number(p.stock),0)}</strong></div><div class="stat warning"><span>Stock bajo</span><strong>${low}</strong></div></div><section class="panel"><div class="section-title"><h2>Catálogo</h2><button class="text-button" data-action="csv">Exportar CSV</button></div><div class="search-row"><input id="search" type="search" placeholder="Nombre, categoría o código" value="${esc(state.query)}"><button class="secondary" data-action="scan" data-mode="find">⌗ Escanear</button></div><div class="inventory-list">${matches.length?matches.map(p=>`<div class="inventory-item"><span class="item-symbol">▦</span><span class="grow"><strong>${esc(p.name||'Pendiente de completar')}</strong><small>${esc(p.barcode)} · ${esc(p.category||p.unit)}</small></span><span class="stock ${Number(p.stock)<=Number(p.min_stock)?'low':''}">${esc(p.stock)} <small>${esc(p.unit)}</small></span><strong class="inventory-price">${money(p.price)}</strong><button class="icon-btn" data-action="edit" data-id="${esc(p.id)}" aria-label="Editar">✎</button><button class="icon-btn" data-action="stock" data-id="${esc(p.id)}" aria-label="Ajustar stock">±</button></div>`).join(''):'<p class="empty">No se encontraron productos.</p>'}</div></section><section class="panel movement-panel"><div class="section-title"><h2>Últimos movimientos</h2><span>Existencias</span></div>${state.movements.length?state.movements.slice(0,50).map(m=>`<div class="movement-row"><span class="movement-sign ${m.delta<0?'negative':''}">${m.delta>0?'+':''}${esc(m.delta)}</span><span class="grow"><strong>${esc(m.product_name)}</strong><small>${esc(m.reason)} ${m.reference?'· '+esc(m.reference):''}</small></span><span class="movement-after"><strong>${esc(m.after_stock)}</strong><small>${esc(new Date(m.created_at).toLocaleDateString('es-CO'))}</small></span></div>`).join(''):'<p class="empty">Aún no hay movimientos.</p>'}</section>`;
   }
   function ventas() {
     return `${heading('Ventas','Historial guardado en este dispositivo.')}<div class="stat-row"><div class="stat"><span>Ventas</span><strong>${state.sales.length}</strong></div><div class="stat"><span>Total vendido</span><strong class="money-stat">${money(state.sales.reduce((sum,s)=>sum+Number(s.total),0))}</strong></div></div><section class="panel"><div class="section-title"><h2>Recibos</h2><span>Más recientes primero</span></div>${state.sales.length?state.sales.map(s=>`<button class="sale-row" data-action="sale" data-id="${esc(s.id)}"><span class="sale-icon">↗</span><span class="grow"><strong>${esc(s.number)}</strong><small>${esc(new Date(s.created_at).toLocaleString('es-CO'))} · ${esc(s.payment_method)}</small></span><strong>${money(s.total)}</strong><span>›</span></button>`).join(''):'<p class="empty">Aún no hay ventas.</p>'}</section>`;
@@ -58,7 +58,7 @@
     if (!m) return '';
     const close='<button class="icon-btn" data-action="close" aria-label="Cerrar">✕</button>';
     if (m.type==='scanner') return `<div class="overlay"><div class="modal scanner-modal"><div class="modal-head"><div><span class="eyebrow">CÁMARA</span><h2>Escanear código</h2></div>${close}</div><div class="video-wrap"><video id="scanner-video" autoplay muted playsinline></video><div class="scan-frame"></div></div><div class="scan-actions"><p class="muted" data-scan-message>Apunta a las barras y números del producto. Algunos QR solo contienen enlaces.</p><button class="secondary" data-action="torch">Linterna</button></div><form data-form="manual-scan" class="inline-form"><input name="code" placeholder="Código manual" required><button class="primary">Aceptar</button></form></div></div>`;
-    if (m.type==='product') { const p=m.product||{};return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">CATÁLOGO</span><h2>${p.id?'Editar producto':'Nuevo producto'}</h2></div>${close}</div><p class="muted">El código identifica el producto; completa su nombre, precio y existencia para guardarlo en este dispositivo.</p><form data-form="product" class="stack"><input type="hidden" name="id" value="${esc(p.id||'')}"><label>Código de barras<div class="input-button"><input name="barcode" value="${esc(m.barcode||p.barcode||'')}" maxlength="80" placeholder="Escanea o escribe" required><button type="button" class="secondary" data-action="scan" data-mode="product">⌗</button></div></label><label>Nombre<input name="name" value="${esc(p.name||'')}" maxlength="160" required placeholder="Ej. Café 500 g"></label><div class="two-cols"><label>Precio de venta<input name="price" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(p.price??'')}" required></label><label>Costo<input name="cost" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(p.cost??0)}" required></label></div><div class="two-cols"><label>Existencia<input name="stock" type="number" inputmode="decimal" step="0.001" min="0" value="${esc(p.stock??0)}" required></label><label>Stock mínimo<input name="min_stock" type="number" inputmode="decimal" step="0.001" min="0" value="${esc(p.min_stock??0)}" required></label></div><div class="two-cols"><label>Categoría<input name="category" value="${esc(p.category||'')}" maxlength="80"></label><label>Unidad<input name="unit" value="${esc(p.unit||'unidad')}" maxlength="40"></label></div><button class="primary">Guardar producto</button></form>${p.id?`<button class="danger-text" data-action="archive" data-id="${esc(p.id)}">Archivar producto</button>`:''}</div></div>`; }
+    if (m.type==='product') { const p=m.product||{};return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">CATÁLOGO</span><h2>${p.needs_details?'Completar producto':p.id?'Editar producto':'Nuevo producto'}</h2></div>${close}</div><p class="muted">El código identifica el producto; completa su nombre, precio y existencia para guardarlo en este dispositivo.</p><form data-form="product" class="stack"><input type="hidden" name="id" value="${esc(p.id||'')}"><label>Código de barras<div class="input-button"><input name="barcode" value="${esc(m.barcode||p.barcode||'')}" maxlength="80" placeholder="Escanea o escribe" required><button type="button" class="secondary" data-action="scan" data-mode="product">⌗</button></div></label><label>Nombre<input name="name" value="${esc(p.name||'')}" maxlength="160" required placeholder="Ej. Café 500 g"></label><div class="two-cols"><label>Precio de venta<input name="price" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(p.price??'')}" required></label><label>Costo<input name="cost" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(p.cost??0)}" required></label></div><div class="two-cols"><label>Existencia<input name="stock" type="number" inputmode="decimal" step="0.001" min="0" value="${esc(p.stock??0)}" required></label><label>Stock mínimo<input name="min_stock" type="number" inputmode="decimal" step="0.001" min="0" value="${esc(p.min_stock??0)}" required></label></div><div class="two-cols"><label>Categoría<input name="category" value="${esc(p.category||'')}" maxlength="80"></label><label>Unidad<input name="unit" value="${esc(p.unit||'unidad')}" maxlength="40"></label></div><button class="primary">Guardar producto</button></form>${p.id?`<button class="danger-text" data-action="archive" data-id="${esc(p.id)}">Archivar producto</button>`:''}</div></div>`; }
     if (m.type==='stock') return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">MOVIMIENTO</span><h2>Ajustar existencias</h2></div>${close}</div><p class="muted">${esc(m.product.name)} · actual: ${esc(m.product.stock)} ${esc(m.product.unit)}</p><form data-form="stock" class="stack"><input type="hidden" name="id" value="${esc(m.product.id)}"><label>Cantidad a sumar o restar<input name="delta" type="number" step="0.001" inputmode="decimal" required placeholder="Ej. 10 o -2"></label><label>Motivo<input name="reason" maxlength="80" required placeholder="Compra, merma, corrección"></label><button class="primary">Registrar movimiento</button></form></div></div>`;
     if (m.type==='checkout') return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">COBRO</span><h2>Confirmar venta</h2></div>${close}</div><div class="checkout-summary">${cartLines().map(({product:p,qty})=>`<div><span>${qty} × ${esc(p.name)}</span><strong>${money(qty*p.price)}</strong></div>`).join('')}<div class="summary-total"><span>Total</span><strong>${money(cartTotal())}</strong></div></div><form data-form="sale" class="stack"><label>Medio de pago<select name="payment"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></label><label>Cliente (opcional)<input name="customer" maxlength="120"></label><button class="primary">Guardar venta</button></form></div></div>`;
     if (m.type==='receipt') {const s=m.sale;return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">RECIBO</span><h2>${esc(s.number)}</h2></div>${close}</div><div class="receipt-preview"><strong>${esc(state.shop.name)}</strong><small>${esc(new Date(s.created_at).toLocaleString('es-CO'))}</small>${s.items.map(i=>`<div><span>${esc(i.quantity)} × ${esc(i.name)}</span><span>${money(i.total)}</span></div>`).join('')}<div class="summary-total"><span>Total</span><strong>${money(s.total)}</strong></div></div><button class="primary full" data-action="print">Imprimir recibo</button></div></div>`;}
@@ -72,7 +72,7 @@
 
   function addToCart(id) {
     const product=productById(id);
-    if (!product?.active) return notify('Producto no encontrado.');
+    if (!product?.active || product.needs_details) return notify('Completa la ficha del producto antes de venderlo.');
     const next=(state.cart[id]||0)+1;
     if (next>Number(product.stock)) return notify('No hay existencias suficientes.');
     state.cart[id]=next;
@@ -83,6 +83,14 @@
     state.controls?.stop();
     state.controls=null;
     state.torch=false;
+  }
+  function scanMessage(text) {
+    const message=document.querySelector('[data-scan-message]');
+    if (message) message.textContent=text;
+  }
+  function updateScannerSummary() {
+    const summary=document.querySelector('[data-scan-cart]');
+    if (summary) summary.textContent=`Venta actual: ${cartLines().reduce((sum,line)=>sum+line.qty,0)} unidades · ${money(cartTotal())}`;
   }
   function productCodeFromScan(value) {
     const raw=String(typeof value==='object' && value!==null?value.text:value||'').trim();
@@ -107,37 +115,82 @@
     state.modal={type:'scanner',previous};
     const scannerModal=state.modal;
     render();
+    if (mode==='sale') {
+      const summary=document.createElement('p');
+      summary.className='muted';
+      summary.dataset.scanCart='';
+      document.querySelector('[data-form="manual-scan"]').before(summary);
+      updateScannerSummary();
+    }
     try {
-      let detected=false;
-      const controls=await globalThis.BarcodeScanner.start(document.getElementById('scanner-video'),code=>{
-        if (detected) return;
-        detected=handleCode(code,mode,previous);
+      let busy=false;
+      const controls=await globalThis.BarcodeScanner.start(document.getElementById('scanner-video'),async code=>{
+        if (busy || state.modal!==scannerModal) return;
+        busy=true;
+        try { await handleCode(code,mode,previous); }
+        catch (error) { scanMessage(friendly(error)); }
+        finally { busy=false; }
       });
-      if (detected || state.modal!==scannerModal) controls.stop();
+      if (state.modal!==scannerModal) controls.stop();
       else state.controls=controls;
     } catch (error) {
-      if (state.modal===scannerModal) document.querySelector('[data-scan-message]').textContent='No se pudo abrir la cámara. Escribe el código manualmente.';
+      if (state.modal===scannerModal) scanMessage('No se pudo abrir la cámara. Escribe el código manualmente.');
     }
   }
-  function handleCode(value,mode,previous) {
+  async function handleCode(value,mode,previous) {
     const result=productCodeFromScan(value);
     if (result.error) {
-      const message=document.querySelector('[data-scan-message]');
-      if (state.modal?.type==='scanner' && message) message.textContent=result.error;
+      if (state.modal?.type==='scanner') scanMessage(result.error);
       else notify(result.error);
       return false;
     }
-    closeScanner();
     const code=result.code;
     const product=activeProducts().find(p=>p.barcode===code);
-    if (mode==='product') {state.modal={type:'product',product:previous?.product||null,barcode:code};render();return true;}
-    state.modal=null;
-    if (mode==='find') {
-      state.view='inventario';state.query=product?code:'';
-      if (product) render();
-      else {state.modal={type:'product',barcode:code};render();}
-    } else if (product) addToCart(product.id);
-    else {state.modal={type:'product',barcode:code};render();}
+    if (mode==='sale' && product && !product.needs_details) {
+      if (state.modal?.type!=='scanner') { addToCart(product.id); return true; }
+      const next=(state.cart[product.id]||0)+1;
+      if (next>Number(product.stock)) scanMessage(`No hay existencias suficientes de ${product.name}.`);
+      else {
+        state.cart[product.id]=next;
+        updateScannerSummary();
+        scanMessage(`${product.name} agregado a la venta. Sigue escaneando o cierra la cámara.`);
+      }
+      return false;
+    }
+    if (mode==='product' && previous?.product?.id) {
+      closeScanner();
+      state.modal={type:'product',product:previous.product,barcode:code};
+      render();
+      return true;
+    }
+    let selected=product;
+    if (!selected) {
+      const registration=await db.registerBarcode(code);
+      selected=registration.product;
+      if (!state.products.some(item=>item.id===selected.id)) {
+        state.products.push(selected);
+        state.products.sort((a,b)=>a.name.localeCompare(b.name,'es'));
+      }
+      if (registration.created) broadcast();
+    }
+    if (!selected.active) {
+      const message='Este código pertenece a un producto archivado y no está disponible para esta venta.';
+      if (state.modal?.type==='scanner') scanMessage(message);
+      else notify(message);
+      return false;
+    }
+    closeScanner();
+    if (mode==='find' && !selected.needs_details) {
+      state.modal=null;
+      state.view='inventario';
+      state.query=code;
+      render();
+      return true;
+    }
+    state.view=mode==='find'?'inventario':state.view;
+    state.query='';
+    state.modal={type:'product',product:selected,barcode:code,resumeScanMode:mode==='sale'?'sale':null};
+    render();
     return true;
   }
   function download(name,text,type) {
@@ -183,7 +236,7 @@
       if (action==='view') {closeScanner();state.view=button.dataset.view;state.query='';state.modal=null;render();}
       else if (action==='close') {closeScanner();state.modal=null;render();}
       else if (action==='scan') await openScanner(button.dataset.mode);
-      else if (action==='manual') {const code=prompt('Código de barras');if(code)handleCode(code,button.dataset.mode,null);}
+      else if (action==='manual') {const code=prompt('Código de barras');if(code)await handleCode(code,button.dataset.mode,null);}
       else if (action==='torch') {
         const track=document.getElementById('scanner-video')?.srcObject?.getVideoTracks()?.[0];
         if (!track?.getCapabilities?.().torch) throw new Error('La linterna no está disponible en este teléfono.');
@@ -205,7 +258,7 @@
       else if (action==='print-test') {state.modal={type:'receipt',sale:{id:'prueba',number:'PRUEBA',created_at:new Date().toISOString(),payment_method:'efectivo',total:1000,items:[{name:'Producto de prueba',quantity:1,unit_price:1000,total:1000}]}};render();}
       else if (action==='csv') exportCsv();
       else if (action==='backup') {const backup=await db.exportBackup();download(`respaldo-codigo-barras-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(backup,null,2),'application/json');notify('Respaldo descargado.');}
-    } catch (error) {notify(friendly(error));}
+    } catch (error) {if(state.modal?.type==='scanner')scanMessage(friendly(error));else notify(friendly(error));}
   });
   root.addEventListener('submit',async event=>{
     const form=event.target.closest('[data-form]');
@@ -215,8 +268,22 @@
     const submit=event.submitter;
     if (submit) submit.disabled=true;
     try {
-      if (form.dataset.form==='manual-scan') handleCode(data.code,state.scanMode,state.modal?.previous);
-      if (form.dataset.form==='product') {await db.saveProduct(data);state.modal=null;state.view='inventario';state.query='';await reload();broadcast();notify('Producto guardado.');}
+      if (form.dataset.form==='manual-scan') await handleCode(data.code,state.scanMode,state.modal?.previous);
+      if (form.dataset.form==='product') {
+        const resume=state.modal?.resumeScanMode;
+        const saved=await db.saveProduct(data);
+        state.modal=null;
+        state.view=resume==='sale'?'caja':'inventario';
+        state.query='';
+        await reload();
+        broadcast();
+        if (resume==='sale') {
+          if (Number(saved.stock)>0) state.cart[saved.id]=1;
+          await openScanner('sale');
+          updateScannerSummary();
+          scanMessage(`${saved.name} guardado${Number(saved.stock)>0?' y agregado a la venta':''}. Sigue escaneando.`);
+        } else notify('Producto guardado.');
+      }
       if (form.dataset.form==='stock') {await db.adjustStock(data.id,data.delta,data.reason);state.modal=null;await reload();broadcast();notify('Movimiento registrado.');}
       if (form.dataset.form==='sale') {const sale=await db.commitSale(state.cart,data.payment,data.customer);state.cart={};state.modal={type:'receipt',sale};await reload();broadcast();notify('Venta guardada y existencias actualizadas.');}
       if (form.dataset.form==='shop') {await db.saveSettings(data);await reload();broadcast();notify('Datos del negocio guardados.');}

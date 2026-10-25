@@ -14,7 +14,7 @@ Abre [index.html](index.html) con doble clic. Todos los archivos necesarios est�
 
 La primera apertura crea la base local. En Inventario agrega productos con código, precio, costo y existencias. En Caja escanea o busca productos, confirma la venta y luego imprime el recibo. En Ajustes define el nombre del negocio y descarga respaldos.
 
-Escanea las **barras y números** del envase (EAN/UPC) para registrar un producto nuevo: se abrirá su ficha con el código, y debes completar nombre, precio y existencia y pulsar **Guardar producto**. Algunos QR del empaque contienen solo un enlace publicitario y no identifican el artículo; el lector lo indicará y seguirá abierto. Los QR GS1 Digital Link que incluyen un GTIN sí se convierten en código de producto. Sin un catálogo externo, la app no puede deducir automáticamente el nombre ni el precio del aceite.
+En Caja puedes mantener la cámara abierta y escanear varios productos ya configurados; cada lectura suma una unidad a la venta. Cuando aparece un código de barras nuevo, la app lo guarda inmediatamente como **pendiente de completar** en IndexedDB y abre su ficha. Introduce nombre, precio y existencia y pulsa **Guardar producto** para poder venderlo. Si cierras la ficha, el código permanece en Inventario como pendiente. El código por sí solo no incluye el nombre ni el precio del artículo; la app local no puede deducirlos automáticamente. Algunos QR de envases contienen solo un enlace; el lector lo indicará y seguirá abierto.
 
 ## Instalar como PWA
 
