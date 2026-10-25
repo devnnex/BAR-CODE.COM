@@ -1,4 +1,4 @@
-const CACHE='codigo-de-barras-9f64a573fea0';
+const CACHE='codigo-de-barras-4acca4ab2149';
 const ASSETS=["./","./index.html","./app.css","./db.js","./app.js","./scanner.bundle.js","./manifest.webmanifest","./icon.svg","./icon-192.png","./icon-512.png"];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('codigo-de-barras-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});

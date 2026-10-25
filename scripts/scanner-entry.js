@@ -1,4 +1,4 @@
-import { BrowserMultiFormatReader } from '@zxing/browser';
+import { BarcodeFormat, BrowserMultiFormatReader } from '@zxing/browser';
 
 export async function start(video, onCode) {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error('La cámara no está disponible en este navegador.');
@@ -12,6 +12,6 @@ export async function start(video, onCode) {
     lastCode = code;
     lastAt = Date.now();
     navigator.vibrate?.(60);
-    onCode(code);
+    onCode({ text: code, format: BarcodeFormat[result.getBarcodeFormat()] });
   });
 }

@@ -57,8 +57,8 @@
     const m=state.modal;
     if (!m) return '';
     const close='<button class="icon-btn" data-action="close" aria-label="Cerrar">✕</button>';
-    if (m.type==='scanner') return `<div class="overlay"><div class="modal scanner-modal"><div class="modal-head"><div><span class="eyebrow">CÁMARA</span><h2>Escanear código</h2></div>${close}</div><div class="video-wrap"><video id="scanner-video" autoplay muted playsinline></video><div class="scan-frame"></div></div><div class="scan-actions"><p class="muted">Centra el código de barras en la cámara.</p><button class="secondary" data-action="torch">Linterna</button></div><form data-form="manual-scan" class="inline-form"><input name="code" placeholder="Código manual" required><button class="primary">Aceptar</button></form></div></div>`;
-    if (m.type==='product') { const p=m.product||{};return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">CATÁLOGO</span><h2>${p.id?'Editar producto':'Nuevo producto'}</h2></div>${close}</div><form data-form="product" class="stack"><input type="hidden" name="id" value="${esc(p.id||'')}"><label>Código de barras<div class="input-button"><input name="barcode" value="${esc(m.barcode||p.barcode||'')}" maxlength="80" placeholder="Escanea o escribe" required><button type="button" class="secondary" data-action="scan" data-mode="product">⌗</button></div></label><label>Nombre<input name="name" value="${esc(p.name||'')}" maxlength="160" required placeholder="Ej. Café 500 g"></label><div class="two-cols"><label>Precio de venta<input name="price" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(p.price??'')}" required></label><label>Costo<input name="cost" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(p.cost??0)}" required></label></div><div class="two-cols"><label>Existencia<input name="stock" type="number" inputmode="decimal" step="0.001" min="0" value="${esc(p.stock??0)}" required></label><label>Stock mínimo<input name="min_stock" type="number" inputmode="decimal" step="0.001" min="0" value="${esc(p.min_stock??0)}" required></label></div><div class="two-cols"><label>Categoría<input name="category" value="${esc(p.category||'')}" maxlength="80"></label><label>Unidad<input name="unit" value="${esc(p.unit||'unidad')}" maxlength="40"></label></div><button class="primary">Guardar producto</button></form>${p.id?`<button class="danger-text" data-action="archive" data-id="${esc(p.id)}">Archivar producto</button>`:''}</div></div>`; }
+    if (m.type==='scanner') return `<div class="overlay"><div class="modal scanner-modal"><div class="modal-head"><div><span class="eyebrow">CÁMARA</span><h2>Escanear código</h2></div>${close}</div><div class="video-wrap"><video id="scanner-video" autoplay muted playsinline></video><div class="scan-frame"></div></div><div class="scan-actions"><p class="muted" data-scan-message>Apunta a las barras y números del producto. Algunos QR solo contienen enlaces.</p><button class="secondary" data-action="torch">Linterna</button></div><form data-form="manual-scan" class="inline-form"><input name="code" placeholder="Código manual" required><button class="primary">Aceptar</button></form></div></div>`;
+    if (m.type==='product') { const p=m.product||{};return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">CATÁLOGO</span><h2>${p.id?'Editar producto':'Nuevo producto'}</h2></div>${close}</div><p class="muted">El código identifica el producto; completa su nombre, precio y existencia para guardarlo en este dispositivo.</p><form data-form="product" class="stack"><input type="hidden" name="id" value="${esc(p.id||'')}"><label>Código de barras<div class="input-button"><input name="barcode" value="${esc(m.barcode||p.barcode||'')}" maxlength="80" placeholder="Escanea o escribe" required><button type="button" class="secondary" data-action="scan" data-mode="product">⌗</button></div></label><label>Nombre<input name="name" value="${esc(p.name||'')}" maxlength="160" required placeholder="Ej. Café 500 g"></label><div class="two-cols"><label>Precio de venta<input name="price" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(p.price??'')}" required></label><label>Costo<input name="cost" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(p.cost??0)}" required></label></div><div class="two-cols"><label>Existencia<input name="stock" type="number" inputmode="decimal" step="0.001" min="0" value="${esc(p.stock??0)}" required></label><label>Stock mínimo<input name="min_stock" type="number" inputmode="decimal" step="0.001" min="0" value="${esc(p.min_stock??0)}" required></label></div><div class="two-cols"><label>Categoría<input name="category" value="${esc(p.category||'')}" maxlength="80"></label><label>Unidad<input name="unit" value="${esc(p.unit||'unidad')}" maxlength="40"></label></div><button class="primary">Guardar producto</button></form>${p.id?`<button class="danger-text" data-action="archive" data-id="${esc(p.id)}">Archivar producto</button>`:''}</div></div>`; }
     if (m.type==='stock') return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">MOVIMIENTO</span><h2>Ajustar existencias</h2></div>${close}</div><p class="muted">${esc(m.product.name)} · actual: ${esc(m.product.stock)} ${esc(m.product.unit)}</p><form data-form="stock" class="stack"><input type="hidden" name="id" value="${esc(m.product.id)}"><label>Cantidad a sumar o restar<input name="delta" type="number" step="0.001" inputmode="decimal" required placeholder="Ej. 10 o -2"></label><label>Motivo<input name="reason" maxlength="80" required placeholder="Compra, merma, corrección"></label><button class="primary">Registrar movimiento</button></form></div></div>`;
     if (m.type==='checkout') return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">COBRO</span><h2>Confirmar venta</h2></div>${close}</div><div class="checkout-summary">${cartLines().map(({product:p,qty})=>`<div><span>${qty} × ${esc(p.name)}</span><strong>${money(qty*p.price)}</strong></div>`).join('')}<div class="summary-total"><span>Total</span><strong>${money(cartTotal())}</strong></div></div><form data-form="sale" class="stack"><label>Medio de pago<select name="payment"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></label><label>Cliente (opcional)<input name="customer" maxlength="120"></label><button class="primary">Guardar venta</button></form></div></div>`;
     if (m.type==='receipt') {const s=m.sale;return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">RECIBO</span><h2>${esc(s.number)}</h2></div>${close}</div><div class="receipt-preview"><strong>${esc(state.shop.name)}</strong><small>${esc(new Date(s.created_at).toLocaleString('es-CO'))}</small>${s.items.map(i=>`<div><span>${esc(i.quantity)} × ${esc(i.name)}</span><span>${money(i.total)}</span></div>`).join('')}<div class="summary-total"><span>Total</span><strong>${money(s.total)}</strong></div></div><button class="primary full" data-action="print">Imprimir recibo</button></div></div>`;}
@@ -84,32 +84,61 @@
     state.controls=null;
     state.torch=false;
   }
+  function productCodeFromScan(value) {
+    const raw=String(typeof value==='object' && value!==null?value.text:value||'').trim();
+    if (!raw) return {error:'No se detectó ningún código.'};
+    if (typeof value==='object' && value?.format==='QR_CODE') {
+      try {
+        const url=new URL(raw);
+        if (url.protocol==='https:' || url.protocol==='http:') {
+          const gtin=url.pathname.match(/(?:^|\/)01\/(\d{14})(?=\/|$)/)?.[1];
+          if (gtin) return {code:gtin.startsWith('0')?gtin.slice(1):gtin};
+          return {error:'Este QR contiene un enlace, no el código comercial del producto. Busca las barras y los números de la etiqueta.'};
+        }
+      } catch { /* Un QR también puede contener un código local, no una URL. */ }
+    }
+    if (/^(?:https?:\/\/|www\.)/i.test(raw)) return {error:'El enlace leído no es un código de producto. Escanea las barras y números de la etiqueta.'};
+    if (raw.length>80 || /[\r\n]/.test(raw)) return {error:'El QR contiene texto, no un código de producto corto. Escanea las barras y números de la etiqueta.'};
+    return {code:raw};
+  }
   async function openScanner(mode) {
     const previous=state.modal;
     state.scanMode=mode;
     state.modal={type:'scanner',previous};
+    const scannerModal=state.modal;
     render();
     try {
       let detected=false;
-      state.controls=await globalThis.BarcodeScanner.start(document.getElementById('scanner-video'),code=>{
+      const controls=await globalThis.BarcodeScanner.start(document.getElementById('scanner-video'),code=>{
         if (detected) return;
-        detected=true;
-        handleCode(code,mode,previous);
+        detected=handleCode(code,mode,previous);
       });
-    } catch (error) { notify('No se pudo abrir la cámara. Puedes escribir el código manualmente.'); }
+      if (detected || state.modal!==scannerModal) controls.stop();
+      else state.controls=controls;
+    } catch (error) {
+      if (state.modal===scannerModal) document.querySelector('[data-scan-message]').textContent='No se pudo abrir la cámara. Escribe el código manualmente.';
+    }
   }
   function handleCode(value,mode,previous) {
+    const result=productCodeFromScan(value);
+    if (result.error) {
+      const message=document.querySelector('[data-scan-message]');
+      if (state.modal?.type==='scanner' && message) message.textContent=result.error;
+      else notify(result.error);
+      return false;
+    }
     closeScanner();
-    const code=String(value||'').trim();
-    if (!code) return;
+    const code=result.code;
     const product=activeProducts().find(p=>p.barcode===code);
-    if (mode==='product') {state.modal={type:'product',product:previous?.product||null,barcode:code};render();return;}
+    if (mode==='product') {state.modal={type:'product',product:previous?.product||null,barcode:code};render();return true;}
     state.modal=null;
     if (mode==='find') {
-      state.view='inventario';state.query=code;render();
-      if (!product) notify('Código no encontrado. Puedes crear ese producto.');
+      state.view='inventario';state.query=product?code:'';
+      if (product) render();
+      else {state.modal={type:'product',barcode:code};render();}
     } else if (product) addToCart(product.id);
-    else {state.modal={type:'product',barcode:code};render();notify('Código nuevo: completa la ficha del producto.');}
+    else {state.modal={type:'product',barcode:code};render();}
+    return true;
   }
   function download(name,text,type) {
     const url=URL.createObjectURL(new Blob([text],{type}));

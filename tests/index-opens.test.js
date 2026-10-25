@@ -25,5 +25,39 @@ test('index.html abierto como archivo dibuja la caja local', async () => {
   assert.equal(errors.length,0,errors.map(String).join('\n'));
   assert.match(dom.window.document.body.textContent,/Caja rápida/);
   assert.match(dom.window.document.body.textContent,/Inventario/);
+  let onScan;
+  let stopped=false;
+  dom.window.BarcodeScanner={start:async (_video,callback) => {
+    onScan=callback;
+    return { stop() { stopped=true; } };
+  }};
+  dom.window.document.querySelector('[data-action="scan"][data-mode="sale"]').click();
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.ok(dom.window.document.getElementById('scanner-video'));
+  onScan({text:'https://marca.example/promocion-aceite',format:'QR_CODE'});
+  assert.match(dom.window.document.querySelector('[data-scan-message]').textContent,/contiene un enlace/);
+  assert.ok(dom.window.document.getElementById('scanner-video'));
+  onScan({text:'7701234567890',format:'EAN_13'});
+  assert.equal(dom.window.document.querySelector('[data-form="product"] [name="barcode"]').value,'7701234567890');
+  assert.equal(stopped,true);
+  const form=dom.window.document.querySelector('[data-form="product"]');
+  form.elements.name.value='Aceite de prueba';
+  form.elements.price.value='12000';
+  form.elements.stock.value='3';
+  form.dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));
+  let products=[];
+  const saveStarted=Date.now();
+  while (!products.some(product=>product.barcode==='7701234567890') && Date.now()-saveStarted<4000) {
+    await new Promise(resolve=>setTimeout(resolve,25));
+    products=await dom.window.LocalDB.all('products');
+  }
+  assert.equal(products.find(product=>product.barcode==='7701234567890')?.name,'Aceite de prueba');
+  while (!dom.window.document.querySelector('[data-action="scan"][data-mode="find"]') && Date.now()-saveStarted<4000) {
+    await new Promise(resolve=>setTimeout(resolve,25));
+  }
+  dom.window.document.querySelector('[data-action="scan"][data-mode="find"]').click();
+  onScan({text:'7709876543210',format:'EAN_13'});
+  assert.equal(dom.window.document.querySelector('[data-form="product"] [name="barcode"]').value,'7709876543210');
+  assert.equal(errors.length,0,errors.map(String).join('\n'));
   dom.window.close();
 });
