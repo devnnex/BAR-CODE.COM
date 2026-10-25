@@ -7,6 +7,7 @@ import 'fake-indexeddb/auto';
 test('index.html abierto como archivo dibuja la caja local', async () => {
   const path = fileURLToPath(new URL('../index.html', import.meta.url));
   const errors=[];
+  let audioStarts=0;
   const virtualConsole=new VirtualConsole();
   virtualConsole.on('jsdomError',error=>errors.push(error));
   const dom=await JSDOM.fromFile(path, {
@@ -16,6 +17,13 @@ test('index.html abierto como archivo dibuja la caja local', async () => {
       window.indexedDB=globalThis.indexedDB;
       window.IDBKeyRange=globalThis.IDBKeyRange;
       window.crypto.randomUUID=()=>globalThis.crypto.randomUUID();
+      window.fetch=async () => ({ok:true,arrayBuffer:async()=>new ArrayBuffer(8)});
+      window.AudioContext=class {
+        state='running';
+        destination={};
+        decodeAudioData=async()=>({});
+        createBufferSource() { return {connect(){},start(){audioStarts+=1;}}; }
+      };
     }
   });
   const started=Date.now();
@@ -60,6 +68,9 @@ test('index.html abierto como archivo dibuja la caja local', async () => {
   stopped=false;
   await onScan({text:'7701234567890',format:'EAN_13'});
   assert.match(dom.window.document.querySelector('[data-scan-cart]').textContent,/2 unidades/);
+  assert.equal(dom.window.document.querySelector('[data-scan-frame]').classList.contains('scan-confirmed'),true);
+  assert.equal(dom.window.document.querySelector('[data-scan-success]').classList.contains('scan-confirmed'),true);
+  assert.equal(audioStarts,2);
   assert.ok(dom.window.document.getElementById('scanner-video'));
   assert.equal(stopped,false);
   dom.window.document.querySelector('.scanner-modal [data-action="close"]').click();

@@ -9,6 +9,58 @@
   const productById = id => state.products.find(p => p.id===id);
   const cartLines = () => Object.entries(state.cart).filter(([,qty])=>qty>0).map(([id,qty])=>({product:productById(id),qty})).filter(line=>line.product);
   const cartTotal = () => cartLines().reduce((total,line)=>total+line.qty*Number(line.product.price),0);
+  let scanAudioContext;
+  let scanAudioBuffer;
+  let scanAudioLoading;
+
+  function prepareScanSound() {
+    const AudioContext = globalThis.AudioContext || globalThis.webkitAudioContext;
+    if (!AudioContext) return;
+    try {
+      if (!scanAudioContext) scanAudioContext = new AudioContext();
+      if (scanAudioContext.state !== 'running' && typeof scanAudioContext.resume === 'function') void scanAudioContext.resume().catch(()=>{});
+      if (!scanAudioLoading) {
+        scanAudioLoading = fetch('./scan-success.wav')
+          .then(response => { if (!response.ok) throw new Error('Sonido no disponible'); return response.arrayBuffer(); })
+          .then(data => scanAudioContext.decodeAudioData(data))
+          .then(buffer => { scanAudioBuffer = buffer; })
+          .catch(()=>{ scanAudioLoading = null; });
+      }
+    } catch { /* El lector sigue funcionando si el audio no está disponible. */ }
+  }
+  function playScanSound() {
+    const play = () => {
+      if (!scanAudioContext || !scanAudioBuffer) return;
+      try {
+        const source = scanAudioContext.createBufferSource();
+        source.buffer = scanAudioBuffer;
+        source.connect(scanAudioContext.destination);
+        source.start();
+      } catch { /* La confirmación visual permanece disponible. */ }
+    };
+    if (scanAudioBuffer) play();
+    else void scanAudioLoading?.then(play);
+  }
+  function showScanSuccess() {
+    const frame = document.querySelector('[data-scan-frame]');
+    const badge = document.querySelector('[data-scan-success]');
+    if (!frame || !badge) return;
+    frame.classList.remove('scan-confirmed');
+    badge.classList.remove('scan-confirmed');
+    void frame.offsetWidth;
+    frame.classList.add('scan-confirmed');
+    badge.classList.add('scan-confirmed');
+    clearTimeout(showScanSuccess.timer);
+    showScanSuccess.timer = setTimeout(() => {
+      frame.classList.remove('scan-confirmed');
+      badge.classList.remove('scan-confirmed');
+    }, 700);
+  }
+  function confirmScannedItem() {
+    showScanSuccess();
+    playScanSound();
+    navigator.vibrate?.(45);
+  }
 
   function notify(message) {
     state.toast = String(message);
@@ -57,7 +109,7 @@
     const m=state.modal;
     if (!m) return '';
     const close='<button class="icon-btn" data-action="close" aria-label="Cerrar">✕</button>';
-    if (m.type==='scanner') return `<div class="overlay"><div class="modal scanner-modal"><div class="modal-head"><div><span class="eyebrow">CÁMARA</span><h2>Escanear código</h2></div>${close}</div><div class="video-wrap"><video id="scanner-video" autoplay muted playsinline></video><div class="scan-frame"></div></div><div class="scan-actions"><p class="muted" data-scan-message>Apunta a las barras y números del producto. Algunos QR solo contienen enlaces.</p><button class="secondary" data-action="torch">Linterna</button></div><form data-form="manual-scan" class="inline-form"><input name="code" placeholder="Código manual" required><button class="primary">Aceptar</button></form></div></div>`;
+    if (m.type==='scanner') return `<div class="overlay"><div class="modal scanner-modal"><div class="modal-head"><div><span class="eyebrow">CÁMARA</span><h2>Escanear código</h2></div>${close}</div><div class="video-wrap"><video id="scanner-video" autoplay muted playsinline></video><div class="scan-frame" data-scan-frame></div><div class="scan-success" data-scan-success aria-hidden="true"><span>✓</span></div></div><div class="scan-actions"><p class="muted" data-scan-message>Apunta a las barras y números del producto. Algunos QR solo contienen enlaces.</p><button class="secondary" data-action="torch">Linterna</button></div><form data-form="manual-scan" class="inline-form"><input name="code" placeholder="Código manual" required><button class="primary">Aceptar</button></form></div></div>`;
     if (m.type==='product') { const p=m.product||{};return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">CATÁLOGO</span><h2>${p.needs_details?'Completar producto':p.id?'Editar producto':'Nuevo producto'}</h2></div>${close}</div><p class="muted">El código identifica el producto; completa su nombre, precio y existencia para guardarlo en este dispositivo.</p><form data-form="product" class="stack"><input type="hidden" name="id" value="${esc(p.id||'')}"><label>Código de barras<div class="input-button"><input name="barcode" value="${esc(m.barcode||p.barcode||'')}" maxlength="80" placeholder="Escanea o escribe" required><button type="button" class="secondary" data-action="scan" data-mode="product">⌗</button></div></label><label>Nombre<input name="name" value="${esc(p.name||'')}" maxlength="160" required placeholder="Ej. Café 500 g"></label><div class="two-cols"><label>Precio de venta<input name="price" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(p.price??'')}" required></label><label>Costo<input name="cost" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(p.cost??0)}" required></label></div><div class="two-cols"><label>Existencia<input name="stock" type="number" inputmode="decimal" step="0.001" min="0" value="${esc(p.stock??0)}" required></label><label>Stock mínimo<input name="min_stock" type="number" inputmode="decimal" step="0.001" min="0" value="${esc(p.min_stock??0)}" required></label></div><div class="two-cols"><label>Categoría<input name="category" value="${esc(p.category||'')}" maxlength="80"></label><label>Unidad<input name="unit" value="${esc(p.unit||'unidad')}" maxlength="40"></label></div><button class="primary">Guardar producto</button></form>${p.id?`<button class="danger-text" data-action="archive" data-id="${esc(p.id)}">Archivar producto</button>`:''}</div></div>`; }
     if (m.type==='stock') return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">MOVIMIENTO</span><h2>Ajustar existencias</h2></div>${close}</div><p class="muted">${esc(m.product.name)} · actual: ${esc(m.product.stock)} ${esc(m.product.unit)}</p><form data-form="stock" class="stack"><input type="hidden" name="id" value="${esc(m.product.id)}"><label>Cantidad a sumar o restar<input name="delta" type="number" step="0.001" inputmode="decimal" required placeholder="Ej. 10 o -2"></label><label>Motivo<input name="reason" maxlength="80" required placeholder="Compra, merma, corrección"></label><button class="primary">Registrar movimiento</button></form></div></div>`;
     if (m.type==='checkout') return `<div class="overlay"><div class="modal"><div class="modal-head"><div><span class="eyebrow">COBRO</span><h2>Confirmar venta</h2></div>${close}</div><div class="checkout-summary">${cartLines().map(({product:p,qty})=>`<div><span>${qty} × ${esc(p.name)}</span><strong>${money(qty*p.price)}</strong></div>`).join('')}<div class="summary-total"><span>Total</span><strong>${money(cartTotal())}</strong></div></div><form data-form="sale" class="stack"><label>Medio de pago<select name="payment"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></label><label>Cliente (opcional)<input name="customer" maxlength="120"></label><button class="primary">Guardar venta</button></form></div></div>`;
@@ -110,6 +162,7 @@
     return {code:raw};
   }
   async function openScanner(mode) {
+    prepareScanSound();
     const previous=state.modal;
     state.scanMode=mode;
     state.modal={type:'scanner',previous};
@@ -154,6 +207,7 @@
         state.cart[product.id]=next;
         updateScannerSummary();
         scanMessage(`${product.name} agregado a la venta. Sigue escaneando o cierra la cámara.`);
+        confirmScannedItem();
       }
       return false;
     }
@@ -278,10 +332,12 @@
         await reload();
         broadcast();
         if (resume==='sale') {
-          if (Number(saved.stock)>0) state.cart[saved.id]=1;
+          const added=Number(saved.stock)>(state.cart[saved.id]||0);
+          if (added) state.cart[saved.id]=(state.cart[saved.id]||0)+1;
           await openScanner('sale');
           updateScannerSummary();
-          scanMessage(`${saved.name} guardado${Number(saved.stock)>0?' y agregado a la venta':''}. Sigue escaneando.`);
+          scanMessage(`${saved.name} guardado${added?' y agregado a la venta':''}. Sigue escaneando.`);
+          if (added) confirmScannedItem();
         } else notify('Producto guardado.');
       }
       if (form.dataset.form==='stock') {await db.adjustStock(data.id,data.delta,data.reason);state.modal=null;await reload();broadcast();notify('Movimiento registrado.');}

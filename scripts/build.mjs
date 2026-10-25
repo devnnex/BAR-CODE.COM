@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const files = ['index.html','app.css','db.js','app.js','scanner.bundle.js','manifest.webmanifest','icon.svg','icon-192.png','icon-512.png'];
+const files = ['index.html','app.css','db.js','app.js','scanner.bundle.js','scan-success.wav','manifest.webmanifest','icon.svg','icon-192.png','icon-512.png'];
 await build({ entryPoints: [join(root,'scripts/scanner-entry.js')], bundle: true, format: 'iife', globalName: 'BarcodeScanner', minify: true, target: 'es2020', outfile: join(root,'scanner.bundle.js') });
 const hash = createHash('sha256');
 for (const name of files) hash.update(await readFile(join(root,name)));
